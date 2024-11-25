@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Appunti.com</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            text-align: center;
+        }
+        .logo {
+            margin: 20px 0;
+        }
+        .search-bar {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+        }
+        #fileList {
+            text-align: left;
+        }
+        .file-item {
+            background-color: #f4f4f4;
+            margin: 10px 0;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #passwordModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <h1>Appunti.com</h1>
+    </div>
+
+    <input type="text" class="search-bar" id="searchInput" placeholder="Cerca documenti..." oninput="filterFiles()">
+
+    <input type="file" id="fileInput" multiple style="display:none" accept=".pdf,.txt,.xlsx,.xls">
+    <button onclick="triggerFileInput()">Aggiungi Documenti</button>
+
+    <div id="fileList"></div>
+
+    <div id="passwordModal">
+        <div class="modal-content">
+            <h2>Inserisci Password</h2>
+            <input type="password" id="passwordField">
+            <button onclick="checkPassword('add')">Conferma</button>
+        </div>
+    </div>
+
+    <div id="deletePasswordModal">
+        <div class="modal-content">
+            <h2>Inserisci Password per Eliminare</h2>
+            <input type="password" id="deletePasswordField">
+            <button onclick="checkPassword('delete')">Conferma</button>
+        </div>
+    </div>
+
+    <script>
+        const CORRECT_PASSWORD = 'gasnano26';
+        let documents = JSON.parse(localStorage.getItem('documents')) || [];
+        let documentToDelete = null;
+
+        document.addEventListener('DOMContentLoaded', renderFiles);
+
+        function triggerFileInput() {
+            document.getElementById('passwordModal').style.display = 'flex';
+        }
+
+        function checkPassword(action) {
+            if (action === 'add') {
+                const passwordInput = document.getElementById('passwordField');
+                const fileInput = document.getElementById('fileInput');
+
+                if (passwordInput.value === CORRECT_PASSWORD) {
+                    document.getElementById('passwordModal').style.display = 'none';
+                    fileInput.click();
+                } else {
+                    alert('Password errata!');
+                }
+            } else if (action === 'delete') {
+                const deletePasswordInput = document.getElementById('deletePasswordField');
+
+                if (deletePasswordInput.value === CORRECT_PASSWORD) {
+                    document.getElementById('deletePasswordModal').style.display = 'none';
+                    if (documentToDelete !== null) {
+                        documents.splice(documentToDelete, 1);
+                        saveDocuments();
+                        renderFiles();
+                        documentToDelete = null;
+                    }
+                } else {
+                    alert('Password errata!');
+                }
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            Array.from(e.target.files).forEach(file => {
+                const name = prompt('Inserisci un nome per il documento:') || file.name;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    documents.push({
+                        name: name,
+                        file: event.target.result,
+                        type: file.type
+                    });
+                    saveDocuments();
+                    renderFiles();
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        function saveDocuments() {
+            localStorage.setItem('documents', JSON.stringify(documents));
+        }
+
+        function renderFiles() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '';
+            documents.forEach((doc, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    ${doc.name} (${doc.type || 'file'})
+                    <div>
+                        <button onclick="downloadFile(${index})">Scarica</button>
+                        <button onclick="confirmDelete(${index})">Elimina</button>
+                    </div>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+
+        function confirmDelete(index) {
+            documentToDelete = index;
+            document.getElementById('deletePasswordModal').style.display = 'flex';
+        }
+
+        function downloadFile(index) {
+            const link = document.createElement('a');
+            link.href = documents[index].file;
+            link.download = documents[index].name;
+            link.click();
+        }
+
+        function filterFiles() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const fileItems = document.querySelectorAll('.file-item');
+            
+            fileItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>
